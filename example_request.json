@@ -1,0 +1,23 @@
+{
+    "update_id": 838181030,
+    "message": {
+        "message_id": 39,
+        "from": {
+            "id": 1399764584,
+            "is_bot": false,
+            "first_name": "Damian",
+            "last_name": "Ferencz",
+            "username": "damif94",
+            "language_code": "es"
+        },
+        "chat": {
+            "id": 1399764584,
+            "first_name": "Damian",
+            "last_name": "Ferencz",
+            "username": "damif94",
+            "type": "private"
+        },
+        "date": 1710299464,
+        "text": "A"
+    }
+}
