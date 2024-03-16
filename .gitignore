@@ -19,6 +19,7 @@ var/
 *.egg
 .DS_Store
 .idea/
+src/__pycache__/
 
 # Serverless directories
 .serverless
@@ -27,3 +28,6 @@ venv/
 **/vendor/
 **/node_modules/
 **/serverless/
+
+.requirements.zip
+unzip_requirements.py
