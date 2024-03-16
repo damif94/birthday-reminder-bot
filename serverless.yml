@@ -18,15 +18,23 @@ provider:
 functions:
   birthday_reminder:
     handler: src.handlers.remind
+    package:
+      include:
+          - src/config.py
+          - src/handlers.py
     layers:
-      - arn:aws:lambda:sa-east-1:378764373381:layer:bots-prod-python-requirements:1
+      - arn:aws:lambda:sa-east-1:378764373381:layer:bots-prod-python-requirements:2
     events:
       - schedule:
           rate: cron(0 3 * * ? *)
   birthday_telegram_api:
     handler: src.handlers.api
+    package:
+      include:
+        - src/config.py
+        - src/handlers.py
     layers:
-      - arn:aws:lambda:sa-east-1:378764373381:layer:bots-prod-python-requirements:1
+      - arn:aws:lambda:sa-east-1:378764373381:layer:bots-prod-python-requirements:2
     events:
       - http:
           path: /

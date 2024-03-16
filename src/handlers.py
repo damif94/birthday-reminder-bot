@@ -2,25 +2,44 @@ import datetime
 import json
 import typing
 import telebot
+import logging
+from botocore import config as botocore_config, exceptions as botocore_exceptions
+import boto3
+from .config import bot, MY_CHAT_ID, BUCKET_NAME, FILE_NAME
 
-from .config import s3_client, bot, MY_CHAT_ID, BUCKET_NAME, FILE_NAME
+logger = logging.getLogger("root")
+logging.getLogger().setLevel(logging.INFO)
 
 
 def load_birthdays_from_bucket() -> typing.List[typing.Tuple[str, datetime.date]]:
-    response = s3_client.get_object(Bucket=BUCKET_NAME, Key=FILE_NAME)
-    object_body = response['Body']
-    content = object_body.read()
-    content = content.decode(encoding='utf-8', errors='strict').strip()
-    content = content.split("\n")
+    s3_config = botocore_config.Config(connect_timeout=2, read_timeout=2)
+    s3_client_with_timeout = boto3.client('s3', config=s3_config)
+    try:
+        logger.info("Loading birthdays from s3")
+        response = s3_client_with_timeout.get_object(Bucket=BUCKET_NAME, Key=FILE_NAME)
+        logger.info("Read object from s3")
+        object_body = response['Body']
+        content = object_body.read()
+        content = content.decode(encoding='utf-8', errors='strict').strip()
+        content = content.split("\n")
 
-    birthdays: typing.List[typing.Tuple[str, datetime.date]] = []
-    for row in content[1:]:
-        row_items = row.split(',')
-        person_name = row_items[0]
-        date = datetime.datetime.strptime(row_items[1], "%d/%m/%Y").date()
-        birthdays.append((person_name, date))
+        birthdays: typing.List[typing.Tuple[str, datetime.date]] = []
+        for row in content[1:]:
+            row_items = row.split(',')
+            person_name = row_items[0]
+            date = datetime.datetime.strptime(row_items[1], "%d/%m/%Y").date()
+            birthdays.append((person_name, date))
 
-    return birthdays
+        return birthdays
+    except botocore_exceptions.EndpointConnectionError as e:
+        logger.error(f"Failed to connect to S3 endpoint: {e}")
+        raise
+    except botocore_exceptions.ReadTimeoutError as e:
+        logger.error(f"Timeout while reading object from S3: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Failed to read object from S3: {e}")
+        raise
 
 
 def remind(event, context):
@@ -40,6 +59,7 @@ def remind(event, context):
 
 
 def api(event, context):
+    logger.info("Received event: {}".format(event))
     try:
         # content_length = int(event['headers']['Content-Length'])
         post_data_str = json.loads(event['body'])
@@ -73,5 +93,3 @@ def handle_query(data):
             'statusCode': 500,
             'body': json.dumps({'error': str(e)})
         }
-
-    return {"statusCode": 200}
