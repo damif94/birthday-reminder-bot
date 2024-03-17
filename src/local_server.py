@@ -1,9 +1,7 @@
 import http.server
 import socketserver
 import telebot
-import handlers
-from config import bot
-
+from src.bot import bot
 PORT = 80
 
 

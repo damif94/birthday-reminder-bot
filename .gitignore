@@ -29,5 +29,7 @@ venv/
 **/node_modules/
 **/serverless/
 
+poetry.lock
+.env
 .requirements.zip
 unzip_requirements.py

@@ -1,11 +1,19 @@
 service: bots
 frameworkVersion: '3'
 
+
 provider:
   stage: prod
   name: aws
   runtime: python3.11
   region: sa-east-1
+  environment:
+    TOKEN: ${env:TOKEN}
+    MY_CHAT_ID: ${env:MY_CHAT_ID}
+    BASE_URL: ${env:BASE_URL}
+    BUCKET_NAME: ${env:BUCKET_NAME}
+    FILE_NAME: ${env:FILE_NAME}
+    USER_TABLE_NAME: ${env:USER_TABLE_NAME}
 
   iam:
     role:
@@ -13,15 +21,21 @@ provider:
         - Effect: "Allow"
           Action:
             - "s3:GetObject"
+            - "s3:PutObject"
           Resource: "arn:aws:s3:::dferencz/birthdays.csv"
+        - Effect: "Allow"
+          Action:
+            - "dynamodb:GetItem"
+            - "dynamodb:PutItem"
+          Resource: "arn:aws:dynamodb:::birthday_bot_users"
+package:
+  patterns:
+    - '!**'
+    - 'src/**'
 
 functions:
   birthday_reminder:
     handler: src.handlers.remind
-    package:
-      include:
-          - src/config.py
-          - src/handlers.py
     layers:
       - arn:aws:lambda:sa-east-1:378764373381:layer:bots-prod-python-requirements:2
     events:
@@ -29,10 +43,6 @@ functions:
           rate: cron(0 3 * * ? *)
   birthday_telegram_api:
     handler: src.handlers.api
-    package:
-      include:
-        - src/config.py
-        - src/handlers.py
     layers:
       - arn:aws:lambda:sa-east-1:378764373381:layer:bots-prod-python-requirements:2
     events:
@@ -46,6 +56,7 @@ plugins:
 
 custom:
   pythonRequirements:
+    usePoetry: true
     slim: true
     layer: true
     zip: true
