@@ -1,4 +1,4 @@
-# Birthday Bot
+# 🎂 Birthday Bot 🎂
 
 This project is a telegram based bot that sends reminder for birthdays.
 
