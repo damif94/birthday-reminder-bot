@@ -1,10 +1,10 @@
 import datetime
 import json
 import os
-import typing
 import logging
-from botocore import config as botocore_config, exceptions as botocore_exceptions
 import boto3
+
+from src.birthday_storage import S3BirthdayStorage
 from src.bot import commands, bot
 
 MY_CHAT_ID = os.getenv('MY_CHAT_ID')
@@ -12,65 +12,18 @@ BUCKET_NAME = os.getenv('BUCKET_NAME')
 FILE_NAME = os.getenv('FILE_NAME')
 USER_TABLE_NAME = os.getenv('USER_TABLE_NAME')
 
+birthday_s3_storage = S3BirthdayStorage(**{"bucket_name": BUCKET_NAME, "file_name": FILE_NAME})
+
 logger = logging.getLogger("root")
 logging.getLogger().setLevel(logging.INFO)
 
 bot.set_my_commands(commands)
 
 
-def load_birthdays_from_bucket() -> typing.List[typing.Tuple[str, datetime.date]]:
-    s3_config = botocore_config.Config(connect_timeout=2, read_timeout=2)
-    s3_client_with_timeout = boto3.client('s3', config=s3_config)
-    try:
-        response = s3_client_with_timeout.get_object(Bucket=BUCKET_NAME, Key=FILE_NAME)
-        logger.debug("Read object from s3")
-        object_body = response['Body']
-        content = object_body.read()
-        content = content.decode(encoding='utf-8', errors='strict').strip()
-        content = content.split("\n")
-
-        birthdays: typing.List[typing.Tuple[str, datetime.date]] = []
-        for row in content[1:]:
-            row_items = row.split(',')
-            person_name = row_items[0]
-            date = datetime.datetime.strptime(row_items[1], "%d/%m/%Y").date()
-            birthdays.append((person_name, date))
-
-        return birthdays
-    except botocore_exceptions.EndpointConnectionError as e:
-        logger.error(f"Failed to connect to S3 endpoint: {e}")
-        raise
-    except botocore_exceptions.ReadTimeoutError as e:
-        logger.error(f"Timeout while reading object from S3: {e}")
-        raise
-    except Exception as e:
-        logger.error(f"Failed to read object from s3: {e}")
-        raise
-
-
-def store_birthdays_to_bucket(birthdays: typing.List[typing.Tuple[str, datetime.date]]):
-    s3_config = botocore_config.Config(connect_timeout=2, read_timeout=2)
-    s3_client_with_timeout = boto3.client('s3', config=s3_config)
-    try:
-        content = "name,birthday\n"
-        for name, date in birthdays:
-            content += f"{name},{date.strftime('%d/%m/%Y')}\n"
-        s3_client_with_timeout.put_object(Bucket=BUCKET_NAME, Key=FILE_NAME, Body=content)
-    except botocore_exceptions.EndpointConnectionError as e:
-        logger.error(f"Failed to connect to S3 endpoint: {e}")
-        raise
-    except botocore_exceptions.ReadTimeoutError as e:
-        logger.error(f"Timeout while reading object from S3: {e}")
-        raise
-    except Exception as e:
-        logger.error(f"Failed to read object from s3: {e}")
-        raise
-
-
-def remind(event, context):
+def remind(_event, _context):
     try:
         today = datetime.datetime.now().date()
-        birthdays = load_birthdays_from_bucket()
+        birthdays = birthday_s3_storage.load_birthdays()
         for person_name, birthday in birthdays:
             if birthday.month == today.month and birthday.day == today.day:
                 text = "Its {} birthday today!".format(person_name)
@@ -80,9 +33,11 @@ def remind(event, context):
     return {"statusCode": 200}
 
 
-def api(event, context):
+def api(event, _context):
     logger.info("Received event: {}".format(event))
     post_data_str = json.loads(event['body'])
+    if "message" not in post_data_str:
+        return {"statusCode": 200}
     try:
         if post_data_str["message"]["text"] == "/start":
             return handle_start(post_data_str)
@@ -102,7 +57,7 @@ def api(event, context):
             return handle_command_not_found(post_data_str)
     except Exception as e:
         chat_id = post_data_str["message"]["chat"]["id"]
-        bot.send_message(chat_id=chat_id, text='An error occurred while processing your request')
+        bot.send_message(chat_id=chat_id, text='An error occurred while processing your request: {}'.format(str(e)))
         logger.error("An error occurred while processing the request: {}".format(e))
         return {
             'statusCode': 200,
@@ -131,16 +86,7 @@ def handle_set(data):
         person_name = " ".join(data_parts[0:len(data_parts) - 1])
         date_str = data_parts[-1]
         date = datetime.datetime.strptime(date_str, "%d/%m/%Y").date()
-        birthdays = load_birthdays_from_bucket()
-        for i in range(len(birthdays)):
-            name, _ = birthdays[i]
-            if name.lower() == person_name.lower():
-                birthdays[i] = (person_name, date)
-                break
-        else:
-            birthdays.append((person_name, date))
-
-        store_birthdays_to_bucket(birthdays)
+        birthday_s3_storage.store_birthday(person_name, date)
         bot.send_message(chat_id=chat_id, text="Birthday for {} was correctly set".format(person_name))
         return {"statusCode": 200}
     except ValueError:
@@ -154,14 +100,10 @@ def handle_delete(data):
     chat_id = data["message"]["chat"]["id"]
     try:
         person_name = str(data["message"]["text"][len("/delete"):]).strip()
-        birthdays = load_birthdays_from_bucket()
-        for i in range(len(birthdays)):
-            name, _ = birthdays[i]
-            if name.lower() == person_name.lower():
-                birthdays.pop(i)
-                store_birthdays_to_bucket(birthdays)
-                bot.send_message(chat_id=chat_id, text="Birthday correctly deleted")
-                return {"statusCode": 200}
+        deleted = birthday_s3_storage.delete_birthday(person_name)
+        if deleted:
+            bot.send_message(chat_id=chat_id, text="Birthday correctly deleted")
+            return {"statusCode": 200}
         bot.send_message(chat_id=chat_id, text="No birthday found for {}".format(person_name))
         return {"statusCode": 200}
     except Exception as e:
@@ -172,12 +114,11 @@ def handle_query(data):
     chat_id = data["message"]["chat"]["id"]
     try:
         person_name = str(data["message"]["text"][len("/query"):]).strip()
-        birthdays = load_birthdays_from_bucket()
-        for name, date in birthdays:
-            if name.lower() == person_name.lower():
-                text = date.strftime("%d/%m/%Y")
-                bot.send_message(chat_id=chat_id, text=text)
-                return {"statusCode": 200}
+        birthday = birthday_s3_storage.get_birthday(person_name)
+        if birthday is not None:
+            text = birthday.strftime("%d/%m/%Y")
+            bot.send_message(chat_id=chat_id, text=text)
+            return {"statusCode": 200}
         bot.send_message(chat_id=chat_id, text="No birthday found for {}".format(person_name))
         return {"statusCode": 200}
     except Exception as e:
@@ -187,7 +128,7 @@ def handle_query(data):
 def handle_query_all(data):
     chat_id = data["message"]["chat"]["id"]
     try:
-        birthdays = load_birthdays_from_bucket()
+        birthdays = birthday_s3_storage.load_birthdays()
         text = ""
         for name, date in birthdays:
             text += "{} - {}\n".format(name, date.strftime("%d/%m/%Y"))
@@ -224,7 +165,8 @@ def handle_command_not_found(data):
     bot.send_message(chat_id=chat_id, text="Command not found")
     return {"statusCode": 200}
 
+
 if __name__ == "__main__":
     f = open("../example_request.json", "r")
-    data = json.loads(f.read())
-    handle_set(data)
+    d = json.loads(f.read())
+    handle_set(d)
