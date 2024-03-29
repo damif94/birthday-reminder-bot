@@ -1,8 +1,9 @@
 import typing
-from botocore import config as botocore_config, exceptions as botocore_exceptions
 import boto3
 import logging
 import datetime
+
+from botocore import config as botocore_config, exceptions as botocore_exceptions
 
 logger = logging.getLogger("root")
 logging.getLogger().setLevel(logging.INFO)
@@ -22,6 +23,38 @@ class BirthdayStorage:
 
     def delete_birthday(self, name: str):
         pass
+
+class MemoryBirthdayStorage(BirthdayStorage):
+    name = "MemoryBirthdayStorage"
+    birthdays: typing.List[typing.Tuple[str, datetime.date]]
+    def __init__(self):
+        self.birthdays = []
+
+    def load_birthdays(self) -> typing.List[typing.Tuple[str, datetime.date]]:
+        return self.birthdays
+
+    def store_birthday(self, name: str, date: datetime.date):
+        for i in range(len(self.birthdays)):
+            n, _ = self.birthdays[i]
+            if n.lower() == name.lower():
+                self.birthdays[i] = (name, date)
+                break
+        else:
+            self.birthdays.append((name, date))
+
+    def get_birthday(self, name: str) -> typing.Optional[datetime.date]:
+        for n, d in self.birthdays:
+            if n.lower() == name.lower():
+                return d
+        return None
+
+    def delete_birthday(self, name: str) -> bool:
+        for i in range(len(self.birthdays)):
+            n, _ = self.birthdays[i]
+            if n.lower() == name.lower():
+                self.birthdays.pop(i)
+                return True
+        return False
 
 
 class S3BirthdayStorage(BirthdayStorage):
