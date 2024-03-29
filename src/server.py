@@ -1,8 +1,5 @@
 import os
-import logging
-import datetime
 import sys
-import telebot
 
 from flask import Flask, request
 
@@ -11,7 +8,7 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
 from src.birthday_storage import MemoryBirthdayStorage
-from src.bot import commands, bot
+from handlers import *
 
 MY_CHAT_ID = os.getenv('MY_CHAT_ID')
 birthday_storage = MemoryBirthdayStorage()
@@ -23,38 +20,41 @@ bot.set_my_commands(commands)
 app = Flask(__name__)
 
 
-@bot.message_handler(commands=['start'])
-def handle_start(message):
-    text = "I can help you remember birthdays.\n"
-    text += "You can use the following commands to interact with me:\n\n"
-    for command in commands:
-        text += "/{} - {}\n".format(command["command"], command["description"])
-    bot.send_message(chat_id=message.chat.id, text=text)
-
-
-@bot.message_handler(commands=['query_all'])
-def handle_query_all(message):
-    birthdays = birthday_storage.load_birthdays()
-    text = ""
-    for name, date in birthdays:
-        text += "{} - {}\n".format(name, date.strftime("%d/%m/%Y"))
-    bot.send_message(chat_id=message.chat.id, text=text)
-
-
-@bot.message_handler(commands=['set'])
-def handle_set(message):
-    try:
-        text = remove_command_prefix(message.text)
-        message_parts = text.split(" ")
-        if len(message_parts) < 2:
-            bot.reply_to(message, text="Invalid input. Please use /set <name> <date>")
-        person_name = " ".join(message_parts[0:len(message_parts) - 1])
-        date_str = message_parts[-1]
-        date = datetime.datetime.strptime(date_str, "%d/%m/%Y").date()
-        birthday_storage.store_birthday(person_name, date)
-        bot.send_message(chat_id=message.chat.id, text="Birthday for {} was correctly set".format(person_name))
-    except ValueError:
-        bot.send_message(chat_id=message.chat.id, text="Invalid date format. Please use dd/mm/yyyy")
+#
+# @bot.message_handler(commands=['start'])
+# def handle_start(message):
+#     text = "I can help you remember birthdays.\n"
+#     text += "You can use the following commands to interact with me:\n\n"
+#     for command in commands:
+#         text += "/{} - {}\n".format(command["command"], command["description"])
+#     bot.send_message(chat_id=message.chat.id, text=text)
+#
+#
+# @bot.message_handler(commands=['query_all'])
+# def handle_query_all(message):
+#     birthdays = birthday_storage.load_birthdays()
+#     text = ""
+#     for name, date in birthdays:
+#         text += "{} - {}\n".format(name, date.strftime("%d/%m/%Y"))
+#     if text == "":
+#         text = "No birthdays found"
+#     bot.send_message(chat_id=message.chat.id, text=text)
+#
+#
+# @bot.message_handler(commands=['set'])
+# def handle_set(message):
+#     try:
+#         text = remove_command_prefix(message.text)
+#         message_parts = text.split(" ")
+#         if len(message_parts) < 2:
+#             bot.reply_to(message, text="Invalid input. Please use /set <name> <date>")
+#         person_name = " ".join(message_parts[0:len(message_parts) - 1])
+#         date_str = message_parts[-1]
+#         date = datetime.datetime.strptime(date_str, "%d/%m/%Y").date()
+#         birthday_storage.store_birthday(person_name, date)
+#         bot.send_message(chat_id=message.chat.id, text="Birthday for {} was correctly set".format(person_name))
+#     except ValueError:
+#         bot.send_message(chat_id=message.chat.id, text="Invalid date format. Please use dd/mm/yyyy")
 
 
 @app.route('/', methods=['POST'])
@@ -69,7 +69,7 @@ def remove_command_prefix(text: str) -> str:
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8000)
+    app.run(debug=True, host='0.0.0.0', port=8000)
 
 # def remind(_event, _context):
 #     try:

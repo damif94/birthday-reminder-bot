@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  flask_app:
+    build: .
+    container_name: flask_app
+    working_dir: /app
+    volumes:
+      - ./:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+    networks:
+      - app
+    command: bash -c "poetry install; export $$(cat .env | xargs); poetry run python src/server.py"
+
+  cron_job:
+    image: python:3.11
+    container_name: cron_job
+    volumes:
+      - ./:/app
+    depends_on:
+      - redis
+    networks:
+      - app
+    entrypoint: sh -c "apt-get update && apt-get -y install cron && cron && tail -f /dev/null"
+    command: "0 * * * * /usr/local/bin/python /cron/execute.py"
+    restart: always
+
+  redis:
+    image: redis
+    container_name: redis
+    networks:
+      - app
+    ports:
+      - "6379:6379"

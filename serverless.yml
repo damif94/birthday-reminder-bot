@@ -35,7 +35,7 @@ package:
 
 functions:
   birthday_reminder:
-    handler: src.handlers.remind
+    handler: src.reminders.remind
     layers:
       - arn:aws:lambda:sa-east-1:378764373381:layer:bots-prod-python-requirements:2
     events:

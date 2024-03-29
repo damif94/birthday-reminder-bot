@@ -1,15 +1,20 @@
 [tool.poetry]
-name = "lambdas"
+name = "birthday-reminder-bot"
 version = "0.1.0"
 description = ""
 authors = ["Damián Ferencz <damianferencz@gmail.com>"]
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.11"
 boto3 = "^1.34.54"
 python-telegram = "^0.18.0"
 telebot="^0.0.5"
+flask = "^3.0.2"
+python-dotenv = "^1.0.1"
+scipy = "^1.12.0"
+redis = "^5.0.3"
 
 [build-system]
 requires = ["poetry-core"]

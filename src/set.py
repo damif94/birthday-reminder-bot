@@ -7,7 +7,8 @@ sys.path.append(parent_dir)
 
 from src.bot import bot, commands
 
-if __name__ == '__main__':
+
+def main():
     args = sys.argv[1:]
 
     if len(args) > 0 and args[0] == 'set-webhook':
@@ -16,3 +17,6 @@ if __name__ == '__main__':
 
     elif len(args) > 0 and args[0] == 'set-commands':
         bot.set_my_commands(commands)
+
+    else:
+        print("Invalid command. Use 'set-webhook' or 'set-commands'")

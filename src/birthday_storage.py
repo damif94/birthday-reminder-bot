@@ -2,11 +2,18 @@ import typing
 import boto3
 import logging
 import datetime
+import redis
+import os
 
 from botocore import config as botocore_config, exceptions as botocore_exceptions
 
 logger = logging.getLogger("root")
 logging.getLogger().setLevel(logging.INFO)
+
+S3_BUCKET_NAME = os.getenv('BUCKET_NAME')
+S3_FILE_NAME = os.getenv('FILE_NAME')
+REDIS_HOST = os.getenv('REDIS_HOST')
+REDIS_PORT = os.getenv('REDIS_PORT')
 
 
 class BirthdayStorage:
@@ -24,9 +31,10 @@ class BirthdayStorage:
     def delete_birthday(self, name: str):
         pass
 
+
 class MemoryBirthdayStorage(BirthdayStorage):
-    name = "MemoryBirthdayStorage"
     birthdays: typing.List[typing.Tuple[str, datetime.date]]
+
     def __init__(self):
         self.birthdays = []
 
@@ -60,9 +68,8 @@ class MemoryBirthdayStorage(BirthdayStorage):
 class S3BirthdayStorage(BirthdayStorage):
     file_name: str
     bucket_name: str
-    birthdays: typing.Optional[typing.List[typing.Tuple[str, datetime.date]]] = None
+    birthdays: typing.Optional[typing.List[typing.Tuple[str, datetime.date]]]
     s3_client: boto3.client
-    name: "S3BirthdayStorage"
 
     def __init__(self, bucket_name: str, file_name: str):
         self.bucket_name = bucket_name
@@ -101,8 +108,7 @@ class S3BirthdayStorage(BirthdayStorage):
         if self.birthdays is None:
             self.birthdays = self.load_birthdays()
         for i in range(len(self.birthdays)):
-            name, _ = self.birthdays[i]
-            if name.lower() == name.lower():
+            if name.lower() == self.birthdays[i][0].lower():
                 self.birthdays[i] = (name, date)
                 break
         else:
@@ -145,6 +151,40 @@ class S3BirthdayStorage(BirthdayStorage):
             raise
 
 
-def build_storage(storage_type: str, **kwargs) -> BirthdayStorage:
-    if storage_type == S3BirthdayStorage.name:
-        return S3BirthdayStorage(**kwargs)
+class RedisBirthdayStorage(BirthdayStorage):
+    redis: redis.Redis
+
+    def __init__(self, host: str, port: int, db: int):
+        self.redis = redis.Redis(host=host, port=port, db=db)
+
+    def load_birthdays(self) -> typing.List[typing.Tuple[str, datetime.date]]:
+        birthdays = []
+        for key in self.redis.scan_iter(match="birthday:*"):
+            name = key.split(":")[1]
+            date = self.redis.get(key)
+            date = datetime.datetime.strptime(date, "%d/%m/%Y").date()
+            birthdays.append((name, date))
+        return birthdays
+
+    def store_birthday(self, name: str, date: datetime.date):
+        self.redis.set(f"birthday:{name}", date.strftime("%d/%m/%Y"))
+
+    def get_birthday(self, name: str) -> typing.Optional[datetime.date]:
+        date = self.redis.get(f"birthday:{name}")
+        if date is not None:
+            return datetime.datetime.strptime(date, "%d/%m/%Y").date()
+        return None
+
+    def delete_birthday(self, name: str) -> bool:
+        return self.redis.delete(f"birthday:{name}") == 1
+
+
+def build_storage(storage_type: str) -> BirthdayStorage:
+    if storage_type == S3BirthdayStorage.__name__:
+        return S3BirthdayStorage(**{"bucket_name": S3_BUCKET_NAME, "file_name": S3_FILE_NAME})
+    if storage_type == MemoryBirthdayStorage.__name__:
+        return MemoryBirthdayStorage()
+    if storage_type == RedisBirthdayStorage.__name__:
+        return RedisBirthdayStorage(**{"host": REDIS_HOST, "port": REDIS_PORT, "db": 0})
+    else:
+        raise ValueError(f"Unknown storage type: {storage_type}")
