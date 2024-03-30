@@ -17,11 +17,6 @@ MY_CHAT_ID = os.getenv('MY_CHAT_ID')
 STORAGE_TYPE = os.getenv('STORAGE_TYPE')
 birthday_storage = build_storage(STORAGE_TYPE)
 
-def remind(_event, _context):
-    reminder()
-    return {'statusCode': 200}
-
-
 def reminder():
     try:
         today = datetime.datetime.now().date()
@@ -31,7 +26,11 @@ def reminder():
                 text = "Its {} birthday today!".format(person_name)
                 bot.send_message(chat_id=MY_CHAT_ID, text=text)
     except Exception as e:
-        bot.send_message(chat_id=MY_CHAT_ID, text='An error occurred while processing your request: {}'.format(str(e)))
-        logger.error("An error occurred while processing the request: {}".format(e))
+        text = 'An error occurred while processing your request: {}'.format(str(e))
+        bot.send_message(chat_id=MY_CHAT_ID, text=text)
+        logger.error(text.format(e))
     finally:
         return {'statusCode': 200}
+
+if __name__ == '__main__':
+    reminder()

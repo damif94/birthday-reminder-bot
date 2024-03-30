@@ -13,4 +13,3 @@ COPY . .
 
 #RUN chmod +x src/server.py
 #ENTRYPOINT ["/bin/bash"] to debug
-CMD ["python", "src/server.py"]
