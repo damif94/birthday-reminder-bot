@@ -1,4 +1,4 @@
-service: bots
+service: birthday-bot
 frameworkVersion: '3'
 
 
@@ -14,6 +14,7 @@ provider:
     BUCKET_NAME: ${env:BUCKET_NAME}
     FILE_NAME: ${env:FILE_NAME}
     USER_TABLE_NAME: ${env:USER_TABLE_NAME}
+    STORAGE_TYPE: S3BirthdayStorage
 
   iam:
     role:
@@ -37,14 +38,14 @@ functions:
   birthday_reminder:
     handler: src.reminders.remind
     layers:
-      - arn:aws:lambda:sa-east-1:378764373381:layer:bots-prod-python-requirements:2
+      - arn:aws:lambda:sa-east-1:378764373381:layer:bots-prod-python-requirements:5
     events:
       - schedule:
           rate: cron(0 3 * * ? *)
-  birthday_telegram_api:
-    handler: src.handlers.api
+  birthday_telegram_webhook:
+    handler: src.handlers.webhook
     layers:
-      - arn:aws:lambda:sa-east-1:378764373381:layer:bots-prod-python-requirements:2
+      - arn:aws:lambda:sa-east-1:378764373381:layer:bots-prod-python-requirements:5
     events:
       - http:
           path: /

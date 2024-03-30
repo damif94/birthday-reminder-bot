@@ -15,8 +15,9 @@ from src.bot import commands, bot
 BUCKET_NAME = os.getenv('BUCKET_NAME')
 FILE_NAME = os.getenv('FILE_NAME')
 USER_TABLE_NAME = os.getenv('USER_TABLE_NAME')
+STORAGE_TYPE = os.getenv('STORAGE_TYPE')
 
-birthday_storage = build_storage("RedisBirthdayStorage")
+birthday_storage = build_storage(storage_type=STORAGE_TYPE)
 
 logger = logging.getLogger("root")
 logging.getLogger().setLevel(logging.INFO)
@@ -91,6 +92,8 @@ def handle_query_all(message):
     text = ""
     for name, date in birthdays:
         text += "{} - {}\n".format(name, date.strftime("%d/%m/%Y"))
+    if text == "":
+        text = "No birthdays found"
     bot.send_message(chat_id=chat_id, text=text)
 
 
@@ -100,7 +103,7 @@ def handle_command_not_found(message):
     bot.send_message(chat_id=chat_id, text="Command not found")
 
 
-def api(event, _context):
+def webhook(event, _context):
     logger.debug("Received event: {}".format(event))
     event_body_str = json.loads(event['body'])
     if "message" not in event_body_str:

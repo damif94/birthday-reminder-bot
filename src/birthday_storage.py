@@ -68,7 +68,7 @@ class MemoryBirthdayStorage(BirthdayStorage):
 class S3BirthdayStorage(BirthdayStorage):
     file_name: str
     bucket_name: str
-    birthdays: typing.Optional[typing.List[typing.Tuple[str, datetime.date]]]
+    birthdays: typing.Optional[typing.List[typing.Tuple[str, datetime.date]]] = None
     s3_client: boto3.client
 
     def __init__(self, bucket_name: str, file_name: str):
@@ -160,8 +160,8 @@ class RedisBirthdayStorage(BirthdayStorage):
     def load_birthdays(self) -> typing.List[typing.Tuple[str, datetime.date]]:
         birthdays = []
         for key in self.redis.scan_iter(match="birthday:*"):
-            name = key.split(":")[1]
-            date = self.redis.get(key)
+            name = key.decode("utf-8").split(":")[1]
+            date = self.redis.get(key).decode("utf-8")
             date = datetime.datetime.strptime(date, "%d/%m/%Y").date()
             birthdays.append((name, date))
         return birthdays
@@ -172,7 +172,7 @@ class RedisBirthdayStorage(BirthdayStorage):
     def get_birthday(self, name: str) -> typing.Optional[datetime.date]:
         date = self.redis.get(f"birthday:{name}")
         if date is not None:
-            return datetime.datetime.strptime(date, "%d/%m/%Y").date()
+            return datetime.datetime.strptime(date.decode("utf-8"), "%d/%m/%Y").date()
         return None
 
     def delete_birthday(self, name: str) -> bool:

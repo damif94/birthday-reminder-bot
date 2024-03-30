@@ -12,9 +12,10 @@ from src.bot import bot
 
 logger = logging.getLogger("root")
 logging.getLogger().setLevel(logging.INFO)
-birthday_storage = build_storage("RedisBirthdayStorage")
 
 MY_CHAT_ID = os.getenv('MY_CHAT_ID')
+STORAGE_TYPE = os.getenv('STORAGE_TYPE')
+birthday_storage = build_storage(STORAGE_TYPE)
 
 def remind(_event, _context):
     reminder()
