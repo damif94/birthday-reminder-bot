@@ -30,6 +30,16 @@ resources:
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
+          - IndexName: MyBirthdayIndex
+            KeySchema:
+              - AttributeName: chat_id
+                KeyType: HASH
+              - AttributeName: birthday_month
+                KeyType: RANGE
+              - AttributeName: birthday_day
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
         BillingMode: PAY_PER_REQUEST
 
 provider:
@@ -39,18 +49,12 @@ provider:
   region: sa-east-1
   environment:
     TOKEN: ${env:TOKEN}
-    MY_CHAT_ID: ${env:MY_CHAT_ID}
     STORAGE_TYPE: DynamoDBBirthdayStorage
     TABLE_NAME: birthday_reminder_bot
 
   iam:
     role:
       statements:
-        - Effect: "Allow"
-          Action:
-            - "s3:GetObject"
-            - "s3:PutObject"
-          Resource: "arn:aws:s3:::dferencz/birthdays.csv"
         - Effect: "Allow"
           Action:
             - "dynamodb:GetItem"

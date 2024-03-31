@@ -10,8 +10,6 @@ sys.path.append(parent_dir)
 from src.handlers import *
 from src.bot import commands, bot
 
-MY_CHAT_ID = os.getenv('MY_CHAT_ID')
-
 logger = logging.getLogger("root")
 logging.getLogger().setLevel(logging.INFO)
 

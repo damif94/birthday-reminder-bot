@@ -86,7 +86,7 @@ def handle_get(message):
 @bot.message_handler(commands=['list'])
 def handle_list(message):
     chat_id = str(message.chat.id)
-    birthdays = birthday_storage.load_birthdays(chat_id)
+    birthdays = birthday_storage.load_birthdays_by_chat_id(chat_id)
     text = ""
     for birthday in birthdays:
         text += "{} - {}\n".format(birthday.name, birthday.date_format())

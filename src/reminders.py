@@ -13,25 +13,23 @@ from src.bot import bot
 logger = logging.getLogger("root")
 logging.getLogger().setLevel(logging.INFO)
 
-MY_CHAT_ID = os.getenv('MY_CHAT_ID')
 STORAGE_TYPE = os.getenv('STORAGE_TYPE')
 birthday_storage = build_storage(STORAGE_TYPE)
 
 
 def reminder():
-    try:
-        today = datetime.datetime.now().date()
-        birthdays = birthday_storage.load_birthdays(chat_id=MY_CHAT_ID)
-        for birthday in birthdays:
-            if birthday.month == today.month and birthday.day == today.day:
-                text = "Its {} birthday today!".format(birthday.name)
-                bot.send_message(chat_id=MY_CHAT_ID, text=text)
-    except Exception as e:
-        text = 'An error occurred while processing your request: {}'.format(str(e))
-        bot.send_message(chat_id=MY_CHAT_ID, text=text)
-        logger.error(text.format(e))
-    finally:
-        return {'statusCode': 200}
+    today = datetime.datetime.now().date()
+    birthdays_with_chat_id = birthday_storage.load_birthdays_by_day(today)
+    for chat_id, birthday in birthdays_with_chat_id:
+        text = "Its {} birthday today!".format(birthday.name)
+        try:
+            bot.send_message(chat_id=chat_id, text=text)
+        except Exception as e:
+            text = 'An error occurred while processing your request: {}'.format(str(e))
+            bot.send_message(chat_id=chat_id, text=text)
+            logger.error(text.format(e))
+    return {'statusCode': 200}
+
 
 if __name__ == '__main__':
     reminder()

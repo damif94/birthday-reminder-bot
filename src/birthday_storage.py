@@ -12,10 +12,6 @@ from src import utils
 logger = logging.getLogger("root")
 logging.getLogger().setLevel(logging.INFO)
 
-REDIS_HOST = os.getenv('REDIS_HOST')
-REDIS_PORT = os.getenv('REDIS_PORT')
-
-
 @dataclasses.dataclass
 class Birthday:
     name: str
@@ -50,7 +46,10 @@ class Birthday:
 class BirthdayStorage:
     name: str
 
-    def load_birthdays(self, chat_id: str) -> typing.List[Birthday]:
+    def load_birthdays_by_chat_id(self, chat_id: str) -> typing.List[Birthday]:
+        pass
+
+    def load_birthdays_by_day(self, day: datetime.date) -> typing.List[typing.Tuple[str, Birthday]]:
         pass
 
     def store_birthday(self, chat_id: str, birthday: Birthday):
@@ -69,8 +68,15 @@ class MemoryBirthdayStorage(BirthdayStorage):
     def __init__(self):
         self.birthdays = {}
 
-    def load_birthdays(self, chat_id: str) -> typing.List[Birthday]:
+    def load_birthdays_by_chat_id(self, chat_id: str) -> typing.List[Birthday]:
         return self.birthdays[chat_id]
+
+    def load_birthdays_by_day(self, day: datetime.date) -> typing.List[typing.Tuple[str, Birthday]]:
+        birthday_list: typing.List[typing.Tuple[str, Birthday]] = []
+        for chat_id, birthday in self.birthdays:
+            if day.day == birthday.day and day.month == birthday.month:
+                birthday_list.append((chat_id, birthday))
+        return birthday_list
 
     def store_birthday(self, chat_id: str, birthday: Birthday):
         for i in range(len(self.birthdays[chat_id])):
@@ -102,12 +108,21 @@ class RedisBirthdayStorage(BirthdayStorage):
     def __init__(self, host: str, port: int, db: int):
         self.redis = redis.Redis(host=host, port=port, db=db)
 
-    def load_birthdays(self, chat_id: str) -> typing.List[Birthday]:
+    def load_birthdays_by_chat_id(self, chat_id: str) -> typing.List[Birthday]:
         birthdays: typing.List[Birthday] = []
         for key in self.redis.scan_iter(match=f"birthday:{chat_id}:*"):
-            name = key.decode("utf-8").split(":")[1]
+            name = key.decode("utf-8").split(":")[2]
             date = self.redis.get(key).decode("utf-8")
             birthdays.append(Birthday(name, date))
+        return birthdays
+
+    def load_birthdays_by_day(self, day: datetime.date) -> typing.List[typing.Tuple[str, Birthday]]:
+        birthdays: typing.List[typing.Tuple[str, Birthday]] = []
+        for key in self.redis.scan_iter(match=f"birthday:*:{day.day}/{day.month}*"):
+            chat_id = key.decode("utf-8").split(":")[1]
+            name = key.decode("utf-8").split(":")[2]
+            date = self.redis.get(key).decode("utf-8")
+            birthdays.append((chat_id, Birthday(name, date)))
         return birthdays
 
     def store_birthday(self, chat_id: str, birthday: Birthday):
@@ -133,10 +148,11 @@ class DynamoDBBirthdayStorage(BirthdayStorage):
         dynamodb_config = botocore_config.Config(connect_timeout=2, read_timeout=2)
         self.dynamodb_client = boto3.client('dynamodb', config=dynamodb_config, region_name='sa-east-1')
 
-    def load_birthdays(self, chat_id: str) -> typing.List[Birthday]:
+    def load_birthdays_by_chat_id(self, chat_id: str) -> typing.List[Birthday]:
         try:
             response = self.dynamodb_client.scan(
                 TableName=self.table_name,
+                IndexName='MyBirthdayIndex',
                 FilterExpression='chat_id = :chat_id',
                 ExpressionAttributeValues=utils.python_obj_to_dynamo_obj({
                     ':chat_id': chat_id
@@ -150,6 +166,32 @@ class DynamoDBBirthdayStorage(BirthdayStorage):
                     if k in item and item[k] is not None
                 ])
                 birthdays.append(Birthday(item['name'], date_str))
+
+            sorted_birthdays = sorted(birthdays, key=lambda day: (day.month, day.day))
+
+            return sorted_birthdays
+        except Exception as e:
+            logger.error(f"Failed to read object from DynamoDB: {e}")
+            raise
+
+    def load_birthdays_by_day(self, day: datetime.date) -> typing.List[typing.Tuple[str, Birthday]]:
+        try:
+            response = self.dynamodb_client.scan(
+                TableName=self.table_name,
+                FilterExpression='birthday_day = :day AND birthday_month = :month',
+                ExpressionAttributeValues=utils.python_obj_to_dynamo_obj({
+                    ':day': day.day,
+                    ':month': day.month,
+                })
+            )
+            birthdays: typing.List[typing.Tuple[str, Birthday]] = []
+            for item in response['Items']:
+                item = utils.dynamo_obj_to_python_obj(item)
+                date_str = "/".join([
+                    str(item[k]) for k in ['birthday_day', 'birthday_month', 'birthday_year']
+                    if k in item and item[k] is not None
+                ])
+                birthdays.append((item['chat_id'], Birthday(item['name'], date_str)))
             return birthdays
         except Exception as e:
             logger.error(f"Failed to read object from DynamoDB: {e}")
@@ -231,7 +273,7 @@ def build_storage(storage_type: str) -> BirthdayStorage:
     if storage_type == MemoryBirthdayStorage.__name__:
         return MemoryBirthdayStorage()
     if storage_type == RedisBirthdayStorage.__name__:
-        return RedisBirthdayStorage(**{"host": REDIS_HOST, "port": REDIS_PORT, "db": 0})
+        return RedisBirthdayStorage(**{"host": os.getenv('REDIS_HOST'), "port": os.getenv('REDIS_PORT'), "db": 0})
     if storage_type == DynamoDBBirthdayStorage.__name__:
         return DynamoDBBirthdayStorage(table_name=os.getenv('TABLE_NAME'))
     else:
