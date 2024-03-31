@@ -10,8 +10,6 @@ sys.path.append(parent_dir)
 from src.birthday_storage import build_storage
 from src.bot import commands, bot
 
-BUCKET_NAME = os.getenv('BUCKET_NAME')
-FILE_NAME = os.getenv('FILE_NAME')
 USER_TABLE_NAME = os.getenv('USER_TABLE_NAME')
 STORAGE_TYPE = os.getenv('STORAGE_TYPE')
 
@@ -36,7 +34,7 @@ def handle_start(message):
 
 @bot.message_handler(commands=['set'])
 def handle_set(message):
-    chat_id = message.chat.id
+    chat_id = str(message.chat.id)
     text = remove_command_prefix(message.text)
     try:
         data_parts = text.split(" ")
@@ -47,7 +45,7 @@ def handle_set(message):
         person_name = " ".join([d.strip() for d in data_parts[0:len(data_parts) - 1]])
         date_str = data_parts[-1]
         date = datetime.datetime.strptime(date_str, "%d/%m/%Y").date()
-        birthday_storage.store_birthday(person_name, date)
+        birthday_storage.store_birthday(chat_id, person_name, date)
         bot.send_message(chat_id=chat_id, text="Birthday for {} was correctly set".format(person_name))
     except ValueError:
         bot.send_message(chat_id=chat_id, text="Invalid date format. Please use dd/mm/yyyy")
@@ -55,13 +53,13 @@ def handle_set(message):
 
 @bot.message_handler(commands=['delete'])
 def handle_delete(message):
-    chat_id = message.chat.id
+    chat_id = str(message.chat.id)
     text = remove_command_prefix(message.text)
     if text == "":
         bot.send_message(chat_id=chat_id, text="Invalid input. Please use /delete <name>")
         return
     person_name = str(text).strip()
-    deleted = birthday_storage.delete_birthday(person_name)
+    deleted = birthday_storage.delete_birthday(chat_id, person_name)
     if deleted:
         bot.send_message(chat_id=chat_id, text="Birthday correctly deleted")
         return
@@ -70,7 +68,7 @@ def handle_delete(message):
 
 @bot.message_handler(commands=['query'])
 def handle_query(message):
-    chat_id = message.chat.id
+    chat_id = str(message.chat.id)
     text = remove_command_prefix(message.text)
     if text == "":
         bot.send_message(chat_id=chat_id, text="Invalid input. Please use /query <name>")
@@ -78,7 +76,7 @@ def handle_query(message):
     data_parts = text.split(" ")
     data_parts = [d for d in data_parts if d != ""]
     person_name = " ".join([d.strip() for d in data_parts[0:len(data_parts)]])
-    birthday = birthday_storage.get_birthday(person_name)
+    birthday = birthday_storage.get_birthday(chat_id, person_name)
     if birthday is not None:
         text = birthday.strftime("%d/%m/%Y")
         bot.send_message(chat_id=chat_id, text=text)
@@ -88,8 +86,8 @@ def handle_query(message):
 
 @bot.message_handler(commands=['query_all'])
 def handle_query_all(message):
-    chat_id = message.chat.id
-    birthdays = birthday_storage.load_birthdays()
+    chat_id = str(message.chat.id)
+    birthdays = birthday_storage.load_birthdays(chat_id)
     text = ""
     for name, date in birthdays:
         text += "{} - {}\n".format(name, date.strftime("%d/%m/%Y"))
@@ -100,6 +98,6 @@ def handle_query_all(message):
 
 @bot.message_handler(func=lambda message: True)
 def handle_command_not_found(message):
-    chat_id = message.chat.id
+    chat_id = str(message.chat.id)
     bot.send_message(chat_id=chat_id, text="Command not found")
 

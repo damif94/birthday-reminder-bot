@@ -17,10 +17,11 @@ MY_CHAT_ID = os.getenv('MY_CHAT_ID')
 STORAGE_TYPE = os.getenv('STORAGE_TYPE')
 birthday_storage = build_storage(STORAGE_TYPE)
 
+
 def reminder():
     try:
         today = datetime.datetime.now().date()
-        birthdays = birthday_storage.load_birthdays()
+        birthdays = birthday_storage.load_birthdays(chat_id=MY_CHAT_ID)
         for person_name, birthday in birthdays:
             if birthday.month == today.month and birthday.day == today.day:
                 text = "Its {} birthday today!".format(person_name)
