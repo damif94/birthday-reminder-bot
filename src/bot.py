@@ -10,19 +10,19 @@ commands = [
         "description": "Start the bot"
     },
     {
-        "command": "set <name> <dd/mm/yyyy>",
-        "description": "Set a new birthday in the format <name> <dd/mm/yyyy>"
+        "command": "add <name> <dd/mm/yyyy>",
+        "description": "Add a birthday to your list in the format <name> <dd/mm/yyyy>"
     },
     {
-        "command": "query <name>",
-        "description": "Query a specific birthday by <name>"
+        "command": "get <name>",
+        "description": "Get a birthday from your list by <name>"
     },
     {
         "command": "delete <name>",
-        "description": "Delete a birthday by <name>"
+        "description": "Delete a birthday from your list by <name>"
     },
     {
-        "command": "query_all",
-        "description": "Query all birthdays"
+        "command": "list",
+        "description": "List all your birthdays"
     }
 ]

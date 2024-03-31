@@ -26,21 +26,22 @@ def remove_command_prefix(text: str) -> str:
 @bot.message_handler(commands=['start'])
 def handle_start(message):
     text = "I can help you remember birthdays.\n"
-    text += "You can use the following commands to interact with me:\n\n"
+    text += "You can store birthdays and I will remind you when they come.\n\n"
+    text += "Use the following commands to interact with me:\n\n"
     for command in commands:
         text += "/{} - {}\n".format(command["command"], command["description"])
     bot.send_message(chat_id=message.chat.id, text=text)
 
 
-@bot.message_handler(commands=['set'])
-def handle_set(message):
+@bot.message_handler(commands=['add'])
+def handle_add(message):
     chat_id = str(message.chat.id)
     text = remove_command_prefix(message.text)
     try:
         data_parts = text.split(" ")
         data_parts = [d for d in data_parts if d != ""]
         if len(data_parts) < 2:
-            bot.send_message(chat_id=chat_id, text="Invalid input. Please use /set <name> <date>")
+            bot.send_message(chat_id=chat_id, text="Invalid input. Please use /add <name> <date>")
             return
         person_name = " ".join([d.strip() for d in data_parts[0:len(data_parts) - 1]])
         date_str = data_parts[-1]
@@ -66,12 +67,12 @@ def handle_delete(message):
     bot.send_message(chat_id=chat_id, text="No birthday found for {}".format(person_name))
 
 
-@bot.message_handler(commands=['query'])
-def handle_query(message):
+@bot.message_handler(commands=['get'])
+def handle_get(message):
     chat_id = str(message.chat.id)
     text = remove_command_prefix(message.text)
     if text == "":
-        bot.send_message(chat_id=chat_id, text="Invalid input. Please use /query <name>")
+        bot.send_message(chat_id=chat_id, text="Invalid input. Please use /get <name>")
         return
     data_parts = text.split(" ")
     data_parts = [d for d in data_parts if d != ""]
@@ -84,8 +85,8 @@ def handle_query(message):
     bot.send_message(chat_id=chat_id, text="No birthday found for {}".format(person_name))
 
 
-@bot.message_handler(commands=['query_all'])
-def handle_query_all(message):
+@bot.message_handler(commands=['list'])
+def handle_list(message):
     chat_id = str(message.chat.id)
     birthdays = birthday_storage.load_birthdays(chat_id)
     text = ""
@@ -100,4 +101,3 @@ def handle_query_all(message):
 def handle_command_not_found(message):
     chat_id = str(message.chat.id)
     bot.send_message(chat_id=chat_id, text="Command not found")
-
