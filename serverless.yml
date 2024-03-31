@@ -1,6 +1,36 @@
 service: birthday-bot
 frameworkVersion: '3'
 
+resources:
+  Resources:
+    BirthdayBotUsersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: birthday_reminder_bot
+        AttributeDefinitions:
+          - AttributeName: chat_id
+            AttributeType: S
+          - AttributeName: name
+            AttributeType: S
+          - AttributeName: birthday_day
+            AttributeType: N
+          - AttributeName: birthday_month
+            AttributeType: N
+        KeySchema:
+          - AttributeName: chat_id
+            KeyType: HASH
+          - AttributeName: name
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: BirthdayIndex
+            KeySchema:
+              - AttributeName: birthday_month
+                KeyType: HASH
+              - AttributeName: birthday_day
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
 
 provider:
   stage: prod
@@ -10,11 +40,8 @@ provider:
   environment:
     TOKEN: ${env:TOKEN}
     MY_CHAT_ID: ${env:MY_CHAT_ID}
-    BASE_URL: ${env:BASE_URL}
-    BUCKET_NAME: ${env:BUCKET_NAME}
-    FILE_NAME: ${env:FILE_NAME}
-    USER_TABLE_NAME: ${env:USER_TABLE_NAME}
-    STORAGE_TYPE: S3BirthdayStorage
+    STORAGE_TYPE: DynamoDBBirthdayStorage
+    TABLE_NAME: birthday_reminder_bot
 
   iam:
     role:
@@ -28,7 +55,10 @@ provider:
           Action:
             - "dynamodb:GetItem"
             - "dynamodb:PutItem"
-          Resource: "arn:aws:dynamodb:::birthday_bot_users"
+            - "dynamodb:UpdateItem"
+            - "dynamodb:Scan"
+            - "dynamodb:DeleteItem"
+          Resource: "arn:aws:dynamodb:sa-east-1:378764373381:table/birthday_reminder_bot"
 package:
   patterns:
     - '!**'

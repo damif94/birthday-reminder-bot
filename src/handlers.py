@@ -40,10 +40,11 @@ def handle_set(message):
     text = remove_command_prefix(message.text)
     try:
         data_parts = text.split(" ")
+        data_parts = [d for d in data_parts if d != ""]
         if len(data_parts) < 2:
             bot.send_message(chat_id=chat_id, text="Invalid input. Please use /set <name> <date>")
             return
-        person_name = " ".join(data_parts[0:len(data_parts) - 1])
+        person_name = " ".join([d.strip() for d in data_parts[0:len(data_parts) - 1]])
         date_str = data_parts[-1]
         date = datetime.datetime.strptime(date_str, "%d/%m/%Y").date()
         birthday_storage.store_birthday(person_name, date)
@@ -74,7 +75,9 @@ def handle_query(message):
     if text == "":
         bot.send_message(chat_id=chat_id, text="Invalid input. Please use /query <name>")
         return
-    person_name = text
+    data_parts = text.split(" ")
+    data_parts = [d for d in data_parts if d != ""]
+    person_name = " ".join([d.strip() for d in data_parts[0:len(data_parts)]])
     birthday = birthday_storage.get_birthday(person_name)
     if birthday is not None:
         text = birthday.strftime("%d/%m/%Y")
