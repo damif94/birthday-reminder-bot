@@ -15,9 +15,11 @@ from src.handlers import * # for side effects
 logger = logging.getLogger("root")
 logging.getLogger().setLevel(logging.INFO)
 
+
 def remind(_event, _context):
     reminder()
     return {'statusCode': 200}
+
 
 def webhook(event, _context):
     logger.debug("Received event: {}".format(event))

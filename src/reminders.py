@@ -22,9 +22,9 @@ def reminder():
     try:
         today = datetime.datetime.now().date()
         birthdays = birthday_storage.load_birthdays(chat_id=MY_CHAT_ID)
-        for person_name, birthday in birthdays:
+        for birthday in birthdays:
             if birthday.month == today.month and birthday.day == today.day:
-                text = "Its {} birthday today!".format(person_name)
+                text = "Its {} birthday today!".format(birthday.name)
                 bot.send_message(chat_id=MY_CHAT_ID, text=text)
     except Exception as e:
         text = 'An error occurred while processing your request: {}'.format(str(e))

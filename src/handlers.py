@@ -1,4 +1,3 @@
-import datetime
 import sys
 import os
 import logging
@@ -7,7 +6,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
-from src.birthday_storage import build_storage
+from src.birthday_storage import build_storage, Birthday
 from src.bot import commands, bot
 
 USER_TABLE_NAME = os.getenv('USER_TABLE_NAME')
@@ -45,11 +44,11 @@ def handle_add(message):
             return
         person_name = " ".join([d.strip() for d in data_parts[0:len(data_parts) - 1]])
         date_str = data_parts[-1]
-        date = datetime.datetime.strptime(date_str, "%d/%m/%Y").date()
-        birthday_storage.store_birthday(chat_id, person_name, date)
+        birthday = Birthday(name=person_name, date_str=date_str)
+        birthday_storage.store_birthday(chat_id, birthday)
         bot.send_message(chat_id=chat_id, text="Birthday for {} was correctly set".format(person_name))
     except ValueError:
-        bot.send_message(chat_id=chat_id, text="Invalid date format. Please use dd/mm/yyyy")
+        bot.send_message(chat_id=chat_id, text="Invalid date format. Please use dd/mm/yyyy or dd/mm")
 
 
 @bot.message_handler(commands=['delete'])
@@ -79,10 +78,9 @@ def handle_get(message):
     person_name = " ".join([d.strip() for d in data_parts[0:len(data_parts)]])
     birthday = birthday_storage.get_birthday(chat_id, person_name)
     if birthday is not None:
-        text = birthday.strftime("%d/%m/%Y")
-        bot.send_message(chat_id=chat_id, text=text)
-        return
-    bot.send_message(chat_id=chat_id, text="No birthday found for {}".format(person_name))
+        bot.send_message(chat_id=chat_id, text=birthday.date_format())
+    else:
+        bot.send_message(chat_id=chat_id, text="No birthday found for {}".format(person_name))
 
 
 @bot.message_handler(commands=['list'])
@@ -90,8 +88,8 @@ def handle_list(message):
     chat_id = str(message.chat.id)
     birthdays = birthday_storage.load_birthdays(chat_id)
     text = ""
-    for name, date in birthdays:
-        text += "{} - {}\n".format(name, date.strftime("%d/%m/%Y"))
+    for birthday in birthdays:
+        text += "{} - {}\n".format(birthday.name, birthday.date_format())
     if text == "":
         text = "No birthdays found"
     bot.send_message(chat_id=chat_id, text=text)
