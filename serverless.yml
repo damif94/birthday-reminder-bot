@@ -3,10 +3,10 @@ frameworkVersion: '3'
 
 resources:
   Resources:
-    BirthdayBotUsersTable:
+    BirthdayReminderBotBirthdaysTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: birthday_reminder_bot
+        TableName: birthday_reminder_bot_birthdays
         AttributeDefinitions:
           - AttributeName: chat_id
             AttributeType: S
@@ -30,14 +30,32 @@ resources:
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
-          - IndexName: MyBirthdayIndex
+          - IndexName: UserBirthdaysIndex
             KeySchema:
               - AttributeName: chat_id
                 KeyType: HASH
               - AttributeName: birthday_month
                 KeyType: RANGE
-              - AttributeName: birthday_day
-                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+    BirthdayReminderBotUsersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: birthday_reminder_bot_users
+        AttributeDefinitions:
+          - AttributeName: chat_id
+            AttributeType: S
+          - AttributeName: utc_offset
+            AttributeType: N
+        KeySchema:
+          - AttributeName: chat_id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: UtcOffsetIndex
+            KeySchema:
+              - AttributeName: utc_offset
+                KeyType: HASH
             Projection:
               ProjectionType: ALL
         BillingMode: PAY_PER_REQUEST
@@ -50,7 +68,8 @@ provider:
   environment:
     TOKEN: ${env:TOKEN}
     STORAGE_TYPE: DynamoDBBirthdayStorage
-    TABLE_NAME: birthday_reminder_bot
+    BIRTHDAYS_TABLE_NAME: birthday_reminder_bot_birthdays
+    USERS_TABLE_NAME: birthday_reminder_bot_users
 
   iam:
     role:
@@ -62,7 +81,15 @@ provider:
             - "dynamodb:UpdateItem"
             - "dynamodb:Scan"
             - "dynamodb:DeleteItem"
-          Resource: "arn:aws:dynamodb:sa-east-1:378764373381:table/birthday_reminder_bot"
+          Resource: "arn:aws:dynamodb:sa-east-1:378764373381:table/birthday_reminder_bot_birthdays"
+        - Effect: "Allow"
+          Action:
+            - "dynamodb:GetItem"
+            - "dynamodb:PutItem"
+            - "dynamodb:UpdateItem"
+            - "dynamodb:Scan"
+            - "dynamodb:DeleteItem"
+          Resource: "arn:aws:dynamodb:sa-east-1:378764373381:table/birthday_reminder_bot_users"
 package:
   patterns:
     - '!**'

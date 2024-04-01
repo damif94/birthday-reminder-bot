@@ -10,8 +10,8 @@ commands = [
         "description": "Start the bot"
     },
     {
-        "command": "add <name> <dd/mm/yyyy>",
-        "description": "Add a birthday to your list in the format <name> <dd/mm/yyyy>"
+        "command": "add <name> <dd/mm(/yyyy)>",
+        "description": "Add a birthday to your list in the format <name> <dd/mm(/yyyy)>"
     },
     {
         "command": "get <name>",
@@ -24,5 +24,9 @@ commands = [
     {
         "command": "list",
         "description": "List all your birthdays"
+    },
+    {
+        "command": "setoffset",
+        "description": "Set utc offset for the reminder"
     }
 ]

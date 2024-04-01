@@ -12,6 +12,7 @@ from src import utils
 logger = logging.getLogger("root")
 logging.getLogger().setLevel(logging.INFO)
 
+
 @dataclasses.dataclass
 class Birthday:
     name: str
@@ -152,7 +153,7 @@ class DynamoDBBirthdayStorage(BirthdayStorage):
         try:
             response = self.dynamodb_client.scan(
                 TableName=self.table_name,
-                IndexName='MyBirthdayIndex',
+                IndexName='UserBirthdaysIndex',
                 FilterExpression='chat_id = :chat_id',
                 ExpressionAttributeValues=utils.python_obj_to_dynamo_obj({
                     ':chat_id': chat_id
@@ -275,6 +276,6 @@ def build_storage(storage_type: str) -> BirthdayStorage:
     if storage_type == RedisBirthdayStorage.__name__:
         return RedisBirthdayStorage(**{"host": os.getenv('REDIS_HOST'), "port": os.getenv('REDIS_PORT'), "db": 0})
     if storage_type == DynamoDBBirthdayStorage.__name__:
-        return DynamoDBBirthdayStorage(table_name=os.getenv('TABLE_NAME'))
+        return DynamoDBBirthdayStorage(table_name=os.getenv('BIRTHDAYS_TABLE_NAME'))
     else:
         raise ValueError(f"Unknown storage type: {storage_type}")

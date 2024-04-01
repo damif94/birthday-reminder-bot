@@ -9,7 +9,7 @@ sys.path.append(parent_dir)
 from src.birthday_storage import build_storage, Birthday
 from src.bot import commands, bot
 
-USER_TABLE_NAME = os.getenv('USER_TABLE_NAME')
+USERS_TABLE_NAME = os.getenv('USERS_TABLE_NAME')
 STORAGE_TYPE = os.getenv('STORAGE_TYPE')
 
 birthday_storage = build_storage(storage_type=STORAGE_TYPE)
