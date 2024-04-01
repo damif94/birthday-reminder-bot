@@ -150,132 +150,112 @@ class DynamoDBBirthdayStorage(BirthdayStorage):
         self.dynamodb_client = boto3.client('dynamodb', config=dynamodb_config, region_name='sa-east-1')
 
     def load_birthdays_by_chat_id(self, chat_id: str) -> typing.List[Birthday]:
-        try:
-            response = self.dynamodb_client.scan(
-                TableName=self.table_name,
-                IndexName='UserBirthdaysIndex',
-                FilterExpression='chat_id = :chat_id',
-                ExpressionAttributeValues=utils.python_obj_to_dynamo_obj({
-                    ':chat_id': chat_id
-                })
-            )
-            birthdays: typing.List[Birthday] = []
-            for item in response['Items']:
-                item = utils.dynamo_obj_to_python_obj(item)
-                date_str = "/".join([
-                    str(item[k]) for k in ['birthday_day', 'birthday_month', 'birthday_year']
-                    if k in item and item[k] is not None
-                ])
-                birthdays.append(Birthday(item['name'], date_str))
+        response = self.dynamodb_client.scan(
+            TableName=self.table_name,
+            IndexName='UserBirthdaysIndex',
+            FilterExpression='chat_id = :chat_id',
+            ExpressionAttributeValues=utils.python_obj_to_dynamo_obj({
+                ':chat_id': chat_id
+            })
+        )
+        birthdays: typing.List[Birthday] = []
+        for item in response['Items']:
+            item = utils.dynamo_obj_to_python_obj(item)
+            date_str = "/".join([
+                str(item[k]) for k in ['birthday_day', 'birthday_month', 'birthday_year']
+                if k in item and item[k] is not None
+            ])
+            birthdays.append(Birthday(item['name'], date_str))
 
-            sorted_birthdays = sorted(birthdays, key=lambda day: (day.month, day.day))
+        sorted_birthdays = sorted(birthdays, key=lambda day: (day.month, day.day))
 
-            return sorted_birthdays
-        except Exception as e:
-            logger.error(f"Failed to read object from DynamoDB: {e}")
-            raise
+        return sorted_birthdays
 
     def load_birthdays_by_day(self, day: datetime.date) -> typing.List[typing.Tuple[str, Birthday]]:
-        try:
-            response = self.dynamodb_client.scan(
-                TableName=self.table_name,
-                FilterExpression='birthday_day = :day AND birthday_month = :month',
-                ExpressionAttributeValues=utils.python_obj_to_dynamo_obj({
-                    ':day': day.day,
-                    ':month': day.month,
-                })
-            )
-            birthdays: typing.List[typing.Tuple[str, Birthday]] = []
-            for item in response['Items']:
-                item = utils.dynamo_obj_to_python_obj(item)
-                date_str = "/".join([
-                    str(item[k]) for k in ['birthday_day', 'birthday_month', 'birthday_year']
-                    if k in item and item[k] is not None
-                ])
-                birthdays.append((item['chat_id'], Birthday(item['name'], date_str)))
-            return birthdays
-        except Exception as e:
-            logger.error(f"Failed to read object from DynamoDB: {e}")
-            raise
+        response = self.dynamodb_client.scan(
+            TableName=self.table_name,
+            FilterExpression='birthday_day = :day AND birthday_month = :month',
+            ExpressionAttributeValues=utils.python_obj_to_dynamo_obj({
+                ':day': day.day,
+                ':month': day.month,
+            })
+        )
+        birthdays: typing.List[typing.Tuple[str, Birthday]] = []
+        for item in response['Items']:
+            item = utils.dynamo_obj_to_python_obj(item)
+            date_str = "/".join([
+                str(item[k]) for k in ['birthday_day', 'birthday_month', 'birthday_year']
+                if k in item and item[k] is not None
+            ])
+            birthdays.append((item['chat_id'], Birthday(item['name'], date_str)))
+        return birthdays
 
     def store_birthday(self, chat_id: str, birthday: Birthday):
-        try:
-            response = self.dynamodb_client.get_item(
+        response = self.dynamodb_client.get_item(
+            TableName=self.table_name,
+            Key=utils.python_obj_to_dynamo_obj({'chat_id': chat_id, 'name': birthday.name})
+        )
+        if 'Item' in response:
+            self.dynamodb_client.update_item(
                 TableName=self.table_name,
-                Key=utils.python_obj_to_dynamo_obj({'chat_id': chat_id, 'name': birthday.name})
+                Key=utils.python_obj_to_dynamo_obj({
+                    'chat_id': chat_id,
+                    'name': birthday.name
+                }),
+                UpdateExpression='SET birthday_day = :day, birthday_month = :month, birthday_year = :year',
+                ExpressionAttributeValues=utils.python_obj_to_dynamo_obj({
+                    ':day': int(birthday.day),
+                    ':month': int(birthday.month),
+                    ':year': int(birthday.year) if birthday.year is not None else None
+                }),
             )
-            if 'Item' in response:
-                self.dynamodb_client.update_item(
-                    TableName=self.table_name,
-                    Key=utils.python_obj_to_dynamo_obj({
-                        'chat_id': chat_id,
-                        'name': birthday.name
-                    }),
-                    UpdateExpression='SET birthday_day = :day, birthday_month = :month, birthday_year = :year',
-                    ExpressionAttributeValues=utils.python_obj_to_dynamo_obj({
-                        ':day': int(birthday.day),
-                        ':month': int(birthday.month),
-                        ':year': int(birthday.year) if birthday.year is not None else None
-                    }),
-                )
-            else:
-                self.dynamodb_client.put_item(
-                    TableName=self.table_name,
-                    Item=utils.python_obj_to_dynamo_obj({
-                        'chat_id': chat_id,
-                        'name': birthday.name,
-                        'birthday_day': int(birthday.day),
-                        'birthday_month': int(birthday.month),
-                        'birthday_year': int(birthday.year) if birthday.year is not None else None
-                    }),
-                )
-        except Exception as e:
-            logger.error(f"Failed to read object from DynamoDB: {e}")
-            raise
+        else:
+            self.dynamodb_client.put_item(
+                TableName=self.table_name,
+                Item=utils.python_obj_to_dynamo_obj({
+                    'chat_id': chat_id,
+                    'name': birthday.name,
+                    'birthday_day': int(birthday.day),
+                    'birthday_month': int(birthday.month),
+                    'birthday_year': int(birthday.year) if birthday.year is not None else None
+                }),
+            )
 
     def get_birthday(self, chat_id: str, name: str) -> typing.Optional[Birthday]:
-        try:
-            response = self.dynamodb_client.get_item(
-                TableName=self.table_name,
-                Key=utils.python_obj_to_dynamo_obj({'chat_id': chat_id, 'name': name})
-            )
-            if 'Item' in response:
-                item = utils.dynamo_obj_to_python_obj(response['Item'])
-                date_str = "/".join([
-                    str(item[k]) for k in ['birthday_day', 'birthday_month', 'birthday_year']
-                    if k in item and item[k] is not None
-                ])
-                return Birthday(name, date_str)
-            else:
-                return None
-        except Exception as e:
-            logger.error(f"Failed to get birthday from DynamoDB: {e}")
-            raise
+        response = self.dynamodb_client.get_item(
+            TableName=self.table_name,
+            Key=utils.python_obj_to_dynamo_obj({'chat_id': chat_id, 'name': name})
+        )
+        if 'Item' in response:
+            item = utils.dynamo_obj_to_python_obj(response['Item'])
+            date_str = "/".join([
+                str(item[k]) for k in ['birthday_day', 'birthday_month', 'birthday_year']
+                if k in item and item[k] is not None
+            ])
+            return Birthday(name, date_str)
+        else:
+            return None
 
     def delete_birthday(self, chat_id: str, name: str) -> bool:
-        try:
-            response = self.dynamodb_client.get_item(
-                TableName=self.table_name,
-                Key=utils.python_obj_to_dynamo_obj({'chat_id': chat_id, 'name': name})
-            )
-            if 'Item' not in response:
-                return False
-            self.dynamodb_client.delete_item(
-                TableName=self.table_name,
-                Key=utils.python_obj_to_dynamo_obj({'chat_id': chat_id, 'name': name})
-            )
-            return True
-        except Exception as e:
-            logger.error(f"Failed to delete object from DynamoDB: {e}")
-            raise
+        response = self.dynamodb_client.get_item(
+            TableName=self.table_name,
+            Key=utils.python_obj_to_dynamo_obj({'chat_id': chat_id, 'name': name})
+        )
+        if 'Item' not in response:
+            return False
+        self.dynamodb_client.delete_item(
+            TableName=self.table_name,
+            Key=utils.python_obj_to_dynamo_obj({'chat_id': chat_id, 'name': name})
+        )
+        return True
 
 
 def build_storage(storage_type: str) -> BirthdayStorage:
-    if storage_type == MemoryBirthdayStorage.__name__:
+    if storage_type == "Memory":
         return MemoryBirthdayStorage()
-    if storage_type == RedisBirthdayStorage.__name__:
+    if storage_type == "Redis":
         return RedisBirthdayStorage(**{"host": os.getenv('REDIS_HOST'), "port": os.getenv('REDIS_PORT'), "db": 0})
-    if storage_type == DynamoDBBirthdayStorage.__name__:
+    if storage_type == "DynamoDB":
         return DynamoDBBirthdayStorage(table_name=os.getenv('BIRTHDAYS_TABLE_NAME'))
     else:
         raise ValueError(f"Unknown storage type: {storage_type}")

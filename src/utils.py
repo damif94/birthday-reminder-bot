@@ -15,3 +15,12 @@ def python_obj_to_dynamo_obj(python_obj: dict) -> dict:
         k: serializer.serialize(v)
         for k, v in python_obj.items()
     }
+
+
+def represents_int(s):
+    try:
+        int(s)
+    except ValueError:
+        return False
+    else:
+        return True

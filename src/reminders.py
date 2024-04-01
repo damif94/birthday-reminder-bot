@@ -24,7 +24,7 @@ def reminder():
     now = datetime.datetime.now()
     today = now.date()
 
-    users_to_remind = user_storage.load_users_by_utc_offset(now.hour)
+    users_to_remind = user_storage.load_users_by_reminder_hour(now.hour)
     chat_ids_to_remind = [user.chat_id for user in users_to_remind]
     birthdays_with_chat_id = birthday_storage.load_birthdays_by_day(today)
     for chat_id, birthday in birthdays_with_chat_id:

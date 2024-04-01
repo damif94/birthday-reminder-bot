@@ -46,15 +46,15 @@ resources:
         AttributeDefinitions:
           - AttributeName: chat_id
             AttributeType: S
-          - AttributeName: utc_offset
+          - AttributeName: reminder_hour
             AttributeType: N
         KeySchema:
           - AttributeName: chat_id
             KeyType: HASH
         GlobalSecondaryIndexes:
-          - IndexName: UtcOffsetIndex
+          - IndexName: ReminderHourIndex
             KeySchema:
-              - AttributeName: utc_offset
+              - AttributeName: reminder_hour
                 KeyType: HASH
             Projection:
               ProjectionType: ALL
@@ -67,7 +67,7 @@ provider:
   region: sa-east-1
   environment:
     TOKEN: ${env:TOKEN}
-    STORAGE_TYPE: DynamoDBBirthdayStorage
+    STORAGE_TYPE: DynamoDB
     BIRTHDAYS_TABLE_NAME: birthday_reminder_bot_birthdays
     USERS_TABLE_NAME: birthday_reminder_bot_users
 
@@ -103,7 +103,7 @@ functions:
       - arn:aws:lambda:sa-east-1:378764373381:layer:birthday-bot-prod-python-requirements:2
     events:
       - schedule:
-          rate: cron(0 3 * * ? *)
+          rate: cron(0 * * * ? *)
   birthday_telegram_webhook:
     handler: lambda.handlers.webhook
     layers:

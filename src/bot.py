@@ -26,7 +26,7 @@ commands = [
         "description": "List all your birthdays"
     },
     {
-        "command": "setoffset",
-        "description": "Set utc offset for the reminder"
+        "command": "setreminderhour <hour>",
+        "description": "Set <hour> for the reminder hour of the day (in UTC)"
     }
 ]

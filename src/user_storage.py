@@ -11,29 +11,33 @@ from src import utils
 logger = logging.getLogger("root")
 logging.getLogger().setLevel(logging.INFO)
 
-DEFAULT_UTC_OFFSET = -3
-
 
 @dataclasses.dataclass
 class User:
     chat_id: str
-    utc_offset: int
+    user_name: str
+    first_name: str
+    last_name: str
+    reminder_hour: int
 
-    def __init__(self, chat_id: str, utc_offset=None):
+    def __init__(self, chat_id: str, user_name: str, first_name: str, last_name: str, reminder_hour: int):
         self.chat_id = chat_id
-        if utc_offset is None:
-            self.utc_offset = DEFAULT_UTC_OFFSET
-        else:
-            self.utc_offset = utc_offset
+        self.user_name = user_name
+        self.first_name = first_name
+        self.last_name = last_name
+        self.reminder_hour = reminder_hour
 
 
 class UserStorage:
     name: str
 
-    def load_users_by_utc_offset(self, utc_offset: int) -> typing.List[User]:
+    def load_users_by_reminder_hour(self, reminder_hour: int) -> typing.List[User]:
         pass
 
-    def update_utc_offset(self, chat_id: str, utc_offset: int):
+    def store_user(self, user: User):
+        pass
+
+    def update_reminder_hour(self, chat_id: str, reminder_hour: int):
         pass
 
 
@@ -47,59 +51,54 @@ class DynamoDBUserStorage(UserStorage):
         dynamodb_config = botocore_config.Config(connect_timeout=2, read_timeout=2)
         self.dynamodb_client = boto3.client('dynamodb', config=dynamodb_config, region_name='sa-east-1')
 
-    def load_users_by_utc_offset(self, utc_offset: int) -> typing.List[User]:
-        try:
-            response = self.dynamodb_client.scan(
-                TableName=self.table_name,
-                IndexName='UtcOffsetIndex',
-                FilterExpression='utc_offset = :utc_offset',
-                ExpressionAttributeValues=utils.python_obj_to_dynamo_obj({
-                    ':utc_offset': utc_offset
-                })
+    def load_users_by_reminder_hour(self, reminder_hour: int) -> typing.List[User]:
+        response = self.dynamodb_client.scan(
+            TableName=self.table_name,
+            IndexName='ReminderHourIndex',
+            FilterExpression='reminder_hour = :reminder_hour',
+            ExpressionAttributeValues=utils.python_obj_to_dynamo_obj({
+                ':reminder_hour': reminder_hour
+            })
+        )
+        users: typing.List[User] = []
+        for item in response['Items']:
+            item = utils.dynamo_obj_to_python_obj(item)
+            user = User(
+                chat_id=item['chat_id'],
+                user_name=item['user_name'],
+                first_name=item['first_name'],
+                last_name=item['last_name'],
+                reminder_hour=item['reminder_hour']
             )
-            users: typing.List[User] = []
-            for item in response['Items']:
-                item = utils.dynamo_obj_to_python_obj(item)
-                users.append(User(chat_id=item['chat_id'], utc_offset=item['utc_offset']))
+            users.append(User(chat_id=item['chat_id'], reminder_hour=item['reminder_hour']))
 
-            return users
-        except Exception as e:
-            logger.error(f"Failed to read object from DynamoDB: {e}")
-            raise
+        return users
 
-    def update_utc_offset(self, chat_id: str, utc_offset: int):
-        try:
-            response = self.dynamodb_client.get_item(
-                TableName=self.table_name,
-                Key=utils.python_obj_to_dynamo_obj({'chat_id': chat_id})
-            )
-            if 'Item' in response:
-                self.dynamodb_client.update_item(
-                    TableName=self.table_name,
-                    Key=utils.python_obj_to_dynamo_obj({
-                        'chat_id': chat_id,
-                        'utc_offset': utc_offset
-                    }),
-                    UpdateExpression='SET utc_offset = :utc_offset',
-                    ExpressionAttributeValues=utils.python_obj_to_dynamo_obj({
-                        ':utc_offset': int(utc_offset),
-                    }),
-                )
-            else:
-                self.dynamodb_client.put_item(
-                    TableName=self.table_name,
-                    Item=utils.python_obj_to_dynamo_obj({
-                        'chat_id': chat_id,
-                        'utc_offset': utc_offset,
-                    }),
-                )
-        except Exception as e:
-            logger.error(f"Failed to read object from DynamoDB: {e}")
-            raise
+    def store_user(self, user: User):
+        self.dynamodb_client.put_item(
+            TableName=self.table_name,
+            Item=utils.python_obj_to_dynamo_obj({
+                'chat_id': user.chat_id,
+                'user_name': str(user.user_name),
+                'first_name': str(user.first_name),
+                'last_name': str(user.last_name),
+                'reminder_hour': int(user.reminder_hour),
+            }),
+        )
+
+    def update_reminder_hour(self, chat_id: str, reminder_hour: int):
+        self.dynamodb_client.update_item(
+            TableName=self.table_name,
+            Key=utils.python_obj_to_dynamo_obj({'chat_id': chat_id}),
+            UpdateExpression='SET reminder_hour = :reminder_hour',
+            ExpressionAttributeValues=utils.python_obj_to_dynamo_obj({
+                ':reminder_hour': int(reminder_hour),
+            }),
+        )
 
 
 def build_storage(storage_type: str) -> UserStorage:
-    if storage_type == DynamoDBUserStorage.__name__:
+    if storage_type == "DynamoDB":
         return DynamoDBUserStorage(table_name=os.getenv('USERS_TABLE_NAME'))
     else:
         raise ValueError(f"Unknown storage type: {storage_type}")

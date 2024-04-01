@@ -6,13 +6,16 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
-from src.birthday_storage import build_storage, Birthday
+from src.birthday_storage import build_storage as build_birthday_storage, Birthday
+from src.user_storage import build_storage as build_user_storage, User
 from src.bot import commands, bot
+from src import utils
 
 USERS_TABLE_NAME = os.getenv('USERS_TABLE_NAME')
 STORAGE_TYPE = os.getenv('STORAGE_TYPE')
 
-birthday_storage = build_storage(storage_type=STORAGE_TYPE)
+birthday_storage = build_birthday_storage(storage_type=STORAGE_TYPE)
+user_storage = build_user_storage(storage_type=STORAGE_TYPE)
 
 logger = logging.getLogger("root")
 logging.getLogger().setLevel(logging.INFO)
@@ -27,6 +30,15 @@ def handle_start(message):
     text = "I can help you remember birthdays.\n"
     text += "You can store birthdays and I will remind you when they come.\n\n"
     text += "Use the following commands to interact with me:\n\n"
+    chat_id = str(message.chat.id)
+    user = User(
+        chat_id=chat_id,
+        user_name=message.from_user.username,
+        first_name=message.from_user.first_name,
+        last_name=message.from_user.last_name,
+        reminder_hour=0,
+    )
+    user_storage.store_user(user)
     for command in commands:
         text += "/{} - {}\n".format(command["command"], command["description"])
     bot.send_message(chat_id=message.chat.id, text=text)
@@ -92,6 +104,24 @@ def handle_list(message):
         text += "{} - {}\n".format(birthday.name, birthday.date_format())
     if text == "":
         text = "No birthdays found"
+    bot.send_message(chat_id=chat_id, text=text)
+
+
+@bot.message_handler(commands=['setreminderhour'])
+def handle_set_hour(message):
+    chat_id = str(message.chat.id)
+    text = remove_command_prefix(message.text)
+    if text == "":
+        bot.send_message(chat_id=chat_id, text="Invalid input. Please use /setreminderhour <hour>")
+        return
+    if not utils.represents_int(text):
+        bot.send_message(chat_id=chat_id, text="Invalid hour format. Please use an integer")
+        return
+    if int(text) < 0 or int(text) > 23:
+        bot.send_message(chat_id=chat_id, text="Invalid hour format. Please use a integer between 0 and 23")
+        return
+    user_storage.update_reminder_hour(chat_id, int(text))
+    text = "Hour for reminder correctly set"
     bot.send_message(chat_id=chat_id, text=text)
 
 
