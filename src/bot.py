@@ -26,6 +26,10 @@ commands = [
         "description": "List all your birthdays"
     },
     {
+        "command": "listupcoming (<n>)",
+        "description": "List all upcoming birthdays up to <n> days from now. Default is 14 days"
+    },
+    {
         "command": "setreminderhour <hour>",
         "description": "Set <hour> for the reminder hour of the day (in UTC)"
     }

@@ -80,9 +80,11 @@ class MemoryBirthdayStorage(BirthdayStorage):
         return birthday_list
 
     def store_birthday(self, chat_id: str, birthday: Birthday):
+        if chat_id not in self.birthdays:
+            self.birthdays[chat_id] = []
         for i in range(len(self.birthdays[chat_id])):
-            n, _ = self.birthdays[chat_id][i]
-            if n.lower() == birthday.name.lower():
+            b = self.birthdays[chat_id][i]
+            if b.name.lower() == birthday.name.lower():
                 self.birthdays[chat_id][i] = birthday
                 break
         else:

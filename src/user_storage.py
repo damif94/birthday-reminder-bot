@@ -70,7 +70,7 @@ class DynamoDBUserStorage(UserStorage):
                 last_name=item['last_name'],
                 reminder_hour=item['reminder_hour']
             )
-            users.append(User(chat_id=item['chat_id'], reminder_hour=item['reminder_hour']))
+            users.append(user)
 
         return users
 

@@ -1,6 +1,7 @@
 import sys
 import os
 import logging
+import datetime
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
@@ -101,6 +102,55 @@ def handle_list(message):
     birthdays = birthday_storage.load_birthdays_by_chat_id(chat_id)
     text = ""
     for birthday in birthdays:
+        text += "{} - {}\n".format(birthday.name, birthday.date_format())
+    if text == "":
+        text = "No birthdays found"
+    bot.send_message(chat_id=chat_id, text=text)
+
+
+@bot.message_handler(commands=['listupcoming'])
+def handle_listupcoming(message):
+    chat_id = str(message.chat.id)
+    text = remove_command_prefix(message.text)
+    if text == "":
+        text = "14"
+    elif not utils.represents_int(text):
+        bot.send_message(chat_id=chat_id, text="Invalid number format. Please use an integer")
+        return
+    elif int(text) < 0 or int(text) > 365:
+        bot.send_message(chat_id=chat_id, text="Invalid number input. Please use a integer between 0 and 365")
+        return
+
+    birthdays = birthday_storage.load_birthdays_by_chat_id(chat_id)
+
+    today = datetime.datetime.now()
+    today_plus_days = today + datetime.timedelta(days=int(text))
+
+    today_plus_days_this_year = today_plus_days
+    today_plus_days_next_year = None
+    if today_plus_days.year > today.year:
+        today_plus_days_this_year = datetime.date(year=today.year, month=12, day=31)
+        today_plus_days_next_year = today_plus_days
+
+    filtered_birthdays = [
+        b for b in birthdays
+        if all([
+            b.month > today.month
+            or (b.month == today.month and b.day >= today.day),
+            (b.month < today_plus_days_this_year.month
+             or (b.month == today_plus_days_this_year.month and b.day < today_plus_days_this_year.day))
+        ])
+    ]
+
+    if today_plus_days_next_year is not None:
+        filtered_birthdays += [
+            b for b in birthdays
+            if b.month < today_plus_days_next_year.month
+               or (b.month == today_plus_days_next_year.month and b.day < today_plus_days_next_year.day)
+        ]
+
+    text = ""
+    for birthday in filtered_birthdays:
         text += "{} - {}\n".format(birthday.name, birthday.date_format())
     if text == "":
         text = "No birthdays found"
