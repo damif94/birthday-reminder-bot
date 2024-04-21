@@ -70,6 +70,8 @@ class MemoryBirthdayStorage(BirthdayStorage):
         self.birthdays = {}
 
     def load_birthdays_by_chat_id(self, chat_id: str) -> typing.List[Birthday]:
+        if chat_id not in self.birthdays:
+            return []
         return self.birthdays[chat_id]
 
     def load_birthdays_by_day(self, day: datetime.date) -> typing.List[typing.Tuple[str, Birthday]]:

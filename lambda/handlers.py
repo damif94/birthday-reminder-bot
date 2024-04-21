@@ -1,16 +1,14 @@
 import json
 import os
 import sys
-import logging
 import telebot
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
-from src.bot import bot
 from src.reminders import reminder
-from src.handlers import * # for side effects
+from src.handlers import *  # for side effects
 
 logger = logging.getLogger("root")
 logging.getLogger().setLevel(logging.INFO)

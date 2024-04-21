@@ -41,6 +41,20 @@ class UserStorage:
         pass
 
 
+class MemoryUserStorage(UserStorage):
+    users: typing.List[User] = []
+
+    def load_users_by_reminder_hour(self, reminder_hour: int) -> typing.List[User]:
+        return [user for user in self.users if user.reminder_hour == reminder_hour]
+
+    def store_user(self, user: User):
+        self.users.append(user)
+
+    def update_reminder_hour(self, chat_id: str, reminder_hour: int):
+        user = next((user for user in self.users if user.chat_id == chat_id), None)
+        if user:
+            user.reminder_hour = reminder_hour
+
 class DynamoDBUserStorage(UserStorage):
     table_name: str = None
     dynamodb: boto3.resource = None
@@ -100,5 +114,7 @@ class DynamoDBUserStorage(UserStorage):
 def build_storage(storage_type: str) -> UserStorage:
     if storage_type == "DynamoDB":
         return DynamoDBUserStorage(table_name=os.getenv('USERS_TABLE_NAME'))
+    elif storage_type == "Memory":
+        return MemoryUserStorage()
     else:
         raise ValueError(f"Unknown storage type: {storage_type}")
